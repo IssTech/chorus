@@ -1,8 +1,8 @@
 proxy:
   enabled: true
   image:
-    repository: harbor.clyso.com/chorus/proxy
-    tag: "" # Chart appVersion will be used if empty
+    repository: ghcr.io/isstech/chorus-proxy
+    tag: "latest" # Chart appVersion will be used if empty
     pullPolicy: Always
   replicas: 2
   resources:
@@ -45,8 +45,8 @@ proxy:
 worker:
   replicas: 2
   image:
-    repository: harbor.clyso.com/chorus/worker
-    tag: "" # Chart appVersion will be used if empty
+    repository: ghcr.io/isstech/chorus-worker
+    tag: "latest" # Chart appVersion will be used if empty
     pullPolicy: Always
   resources:
     limits:
@@ -119,8 +119,8 @@ commonConfig:
 agent:
   enabled: false
   image:
-    repository: harbor.clyso.com/chorus/agent
-    tag: "" # Chart appVersion will be used if empty
+    repository: ghcr.io/isstech/chorus-agent
+    tag: "latest" # Chart appVersion will be used if empty
     pullPolicy: Always
   replicas: 1
   resources:

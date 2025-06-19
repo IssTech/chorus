@@ -62,7 +62,7 @@ func NewGrpcServer(port int, handlers pb.ChorusServer, tracer otel_trace.TracerP
 		}),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			prometheus.UnaryServerInterceptor,
-			otelgrpc.UnaryServerInterceptor(otelgrpc.WithTracerProvider(tracer)),
+			otelgrpc.UnaryServerInterceptor(otelgrpc.WithTracerProvider(tracer)), //nolint // to suppress deprecation warning
 			grpc_ctxtags.UnaryServerInterceptor(),
 			log.UnaryInterceptor(logConf, version.App, version.AppID),
 			trace.UnaryInterceptor(),
@@ -72,7 +72,7 @@ func NewGrpcServer(port int, handlers pb.ChorusServer, tracer otel_trace.TracerP
 		)),
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			prometheus.StreamServerInterceptor,
-			otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(tracer)),
+			otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(tracer)), //nolint // to suppress deprecation warning
 			grpc_ctxtags.StreamServerInterceptor(),
 			log.StreamInterceptor(logConf, version.App, version.AppID),
 			trace.StreamInterceptor(),

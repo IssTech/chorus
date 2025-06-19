@@ -116,6 +116,7 @@ func (s *svc) HandleConsistencyCheckList(ctx context.Context, t *asynq.Task) (er
 	listOpts := minio.ListObjectsOptions{
 		StartAfter: lastObject,
 		Prefix:     payload.Prefix,
+		UseV1:      true,
 	}
 	objects := storageClient.S3().ListObjects(ctx, payload.Bucket, listOpts)
 	for object := range objects {
