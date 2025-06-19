@@ -17,6 +17,7 @@ package env
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"runtime"
@@ -38,6 +39,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+//go:embed proxy-server.conf
+var proxyServerConf []byte
+
+//go:embed ceph-entrypoint.sh
+var cephEntrypointSh []byte
 
 const (
 	CRedisImage    = "redis:8.0.1-alpine"
@@ -94,15 +101,24 @@ const (
 
 type ContainerLogConsumer struct {
 	componentName string
+	disabledLogs  map[ContainerLogType]struct{}
 }
 
-func NewContainerLogConsumer(componenetName string) *ContainerLogConsumer {
+func NewContainerLogConsumer(componenetName string, disabled []ContainerLogType) *ContainerLogConsumer {
+	d := make(map[ContainerLogType]struct{}, len(disabled))
+	for _, logType := range disabled {
+		d[logType] = struct{}{}
+	}
 	return &ContainerLogConsumer{
 		componentName: componenetName,
+		disabledLogs:  d,
 	}
 }
 
 func (r *ContainerLogConsumer) Accept(l testcontainers.Log) {
+	if _, ok := r.disabledLogs[ContainerLogType(l.LogType)]; ok {
+		return
+	}
 	fmt.Printf("%s %s %s", r.componentName, l.LogType, l.Content)
 }
 
@@ -119,6 +135,7 @@ type ContainerPort struct {
 type ComponentCreationConfig struct {
 	Dependencies    []string
 	InstantiateFunc func(context.Context, *TestEnvironment, string, *ComponentCreationConfig) error
+	DisabledLogs    []ContainerLogType
 }
 
 type RedisAccessConfig struct {
@@ -290,36 +307,56 @@ func (r *TestEnvironment) GetCephAccessConfig(instanceName string) (*CephAccessC
 	return &cephAccessCfg, nil
 }
 
-func AsMinio() ComponentCreationConfig {
-	return ComponentCreationConfig{
+func AsMinio(opts ...Option) ComponentCreationConfig {
+	cfg := ComponentCreationConfig{
 		InstantiateFunc: startMinioInstance,
 	}
+	for _, opt := range opts {
+		opt.apply(&cfg)
+	}
+	return cfg
 }
 
-func AsRedis() ComponentCreationConfig {
-	return ComponentCreationConfig{
+func AsRedis(opts ...Option) ComponentCreationConfig {
+	cfg := ComponentCreationConfig{
 		InstantiateFunc: startRedisInstance,
 	}
+	for _, opt := range opts {
+		opt.apply(&cfg)
+	}
+	return cfg
 }
 
-func AsKeystone() ComponentCreationConfig {
-	return ComponentCreationConfig{
+func AsKeystone(opts ...Option) ComponentCreationConfig {
+	cfg := ComponentCreationConfig{
 		InstantiateFunc: startKeystoneInstance,
 	}
+	for _, opt := range opts {
+		opt.apply(&cfg)
+	}
+	return cfg
 }
 
-func AsSwift(keystoneInstance string) ComponentCreationConfig {
-	return ComponentCreationConfig{
+func AsSwift(keystoneInstance string, opts ...Option) ComponentCreationConfig {
+	cfg := ComponentCreationConfig{
 		Dependencies:    []string{keystoneInstance},
 		InstantiateFunc: startSwiftInstance,
 	}
+	for _, opt := range opts {
+		opt.apply(&cfg)
+	}
+	return cfg
 }
 
-func AsCeph(keystoneInstance string) ComponentCreationConfig {
-	return ComponentCreationConfig{
+func AsCeph(keystoneInstance string, opts ...Option) ComponentCreationConfig {
+	cfg := ComponentCreationConfig{
 		Dependencies:    []string{keystoneInstance},
 		InstantiateFunc: startCephInstance,
 	}
+	for _, opt := range opts {
+		opt.apply(&cfg)
+	}
+	return cfg
 }
 
 func vlan(ctx context.Context) (*testcontainers.DockerNetwork, error) {
@@ -454,7 +491,7 @@ func startSwiftInstance(ctx context.Context, env *TestEnvironment, componentName
 		ResellerRole:     resellerRole.Name,
 	}
 
-	swiftProxyTemplate, err := template.ParseFiles("./proxy-server.conf")
+	swiftProxyTemplate, err := template.New("proxy-server.conf").Parse(string(proxyServerConf))
 	if err != nil {
 		return fmt.Errorf("unable to create swift proxy config template: %w", err)
 	}
@@ -484,7 +521,7 @@ func startSwiftInstance(ctx context.Context, env *TestEnvironment, componentName
 		},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(1 * time.Second)},
-			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName)},
+			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName, componentConfig.DisabledLogs)},
 		},
 	}
 
@@ -567,7 +604,7 @@ func startKeystoneInstance(ctx context.Context, env *TestEnvironment, componentN
 		Networks:     []string{env.network.Name},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(1 * time.Second)},
-			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName)},
+			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName, componentConfig.DisabledLogs)},
 		},
 	}
 
@@ -681,7 +718,7 @@ func startRedisInstance(ctx context.Context, env *TestEnvironment, componentName
 		Networks:     []string{env.network.Name},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(1 * time.Second)},
-			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName)},
+			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName, componentConfig.DisabledLogs)},
 		},
 	}
 
@@ -741,7 +778,7 @@ func startMinioInstance(ctx context.Context, env *TestEnvironment, componentName
 		Networks:     []string{env.network.Name},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(1 * time.Second)},
-			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName)},
+			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName, componentConfig.DisabledLogs)},
 		},
 	}
 
@@ -887,7 +924,7 @@ func startCephInstance(ctx context.Context, env *TestEnvironment, componentName 
 		ResellerRole:     resellerRole.Name,
 	}
 
-	cephRGWConfigTemplate, err := template.ParseFiles("./ceph-entrypoint.sh")
+	cephRGWConfigTemplate, err := template.New("ceph-entrypoint.sh").Parse(string(cephEntrypointSh))
 	if err != nil {
 		return fmt.Errorf("unable to create ceph proxy config template: %w", err)
 	}
@@ -937,7 +974,7 @@ func startCephInstance(ctx context.Context, env *TestEnvironment, componentName 
 		},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(1 * time.Second)},
-			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName)},
+			Consumers: []testcontainers.LogConsumer{NewContainerLogConsumer(componentName, componentConfig.DisabledLogs)},
 		},
 	}
 

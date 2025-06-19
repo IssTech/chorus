@@ -77,9 +77,9 @@ var _ = BeforeSuite(func() {
 	suiteCtx = context.Background()
 
 	componentConfig := map[string]ComponentCreationConfig{
-		CMinioTestComponentKey:    AsMinio(),
+		CMinioTestComponentKey:    AsMinio(WithDisabledLog(LogStdout, LogStderr)), // Example:Disable all logs for minio component
 		CKeystoneTestComponentKey: AsKeystone(),
-		CRedisTestComponentKey:    AsRedis(),
+		CRedisTestComponentKey:    AsRedis(WithDisabledLog(LogStdout)), // Example:Disable stdout logs for redis component
 		CSwiftTestComponentKey:    AsSwift(CKeystoneTestComponentKey),
 		CCephTestComponentKey:     AsCeph(CKeystoneTestComponentKey),
 	}
