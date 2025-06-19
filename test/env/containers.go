@@ -17,6 +17,7 @@ package env
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"runtime"
@@ -38,6 +39,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+//go:embed proxy-server.conf
+var proxyServerConf []byte
+
+//go:embed ceph-entrypoint.sh
+var cephEntrypointSh []byte
 
 const (
 	CRedisImage    = "redis:8.0.1-alpine"
@@ -454,7 +461,7 @@ func startSwiftInstance(ctx context.Context, env *TestEnvironment, componentName
 		ResellerRole:     resellerRole.Name,
 	}
 
-	swiftProxyTemplate, err := template.ParseFiles("./proxy-server.conf")
+	swiftProxyTemplate, err := template.New("proxy-server.conf").Parse(string(proxyServerConf))
 	if err != nil {
 		return fmt.Errorf("unable to create swift proxy config template: %w", err)
 	}
@@ -887,7 +894,7 @@ func startCephInstance(ctx context.Context, env *TestEnvironment, componentName 
 		ResellerRole:     resellerRole.Name,
 	}
 
-	cephRGWConfigTemplate, err := template.ParseFiles("./ceph-entrypoint.sh")
+	cephRGWConfigTemplate, err := template.New("ceph-entrypoint.sh").Parse(string(cephEntrypointSh))
 	if err != nil {
 		return fmt.Errorf("unable to create ceph proxy config template: %w", err)
 	}
