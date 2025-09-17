@@ -28,11 +28,12 @@ import (
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bucket, object, method := s3.ParseReq(r)
+		user, bucket, object, method := s3.ParseReq(r)
 		ctx := log.WithBucket(r.Context(), bucket)
 		ctx = log.WithObjName(ctx, object)
 		ctx = log.WithMethod(ctx, method)
 		ctx = log.WithFlow(ctx, xctx.Event)
+		ctx = log.WithUser(ctx, user)
 		if method == s3.UndefinedMethod {
 			zerolog.Ctx(ctx).Warn().Str("request_url", r.Method+": "+r.URL.Path+"?"+r.URL.RawQuery).Msg("unable to define s3 method")
 		}

@@ -21,15 +21,24 @@ import (
 	"strings"
 )
 
-func ParseReq(r *http.Request) (bucket string, object string, method Method) {
+func ParseReq(r *http.Request) (user string, bucket string, object string, method Method) {
 	var (
 		path  = strings.Trim(r.URL.Path, "/")
 		parts = strings.SplitN(path, "/", 2)
 		query = r.URL.Query()
 	)
-	bucket = parts[0]
-	if bucket == "" {
+	bucketUser := parts[0]
+	if bucketUser == "" {
 		bucket = r.Header.Get("x-amz-bucket")
+	} else {
+		// If the user is a part of the URL, use it.
+		var buParts = strings.SplitN(bucketUser, ":", 2)
+		if len(buParts) == 2 {
+			user = buParts[0]
+			bucket = buParts[1]
+		} else {
+			user = ""
+		}
 	}
 
 	if len(parts) == 2 {

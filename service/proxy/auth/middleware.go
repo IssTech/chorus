@@ -17,6 +17,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/xml"
@@ -27,7 +28,6 @@ import (
 	xctx "github.com/clyso/chorus/pkg/ctx"
 	"github.com/clyso/chorus/pkg/log"
 	"github.com/clyso/chorus/pkg/s3"
-	"github.com/clyso/chorus/pkg/util"
 )
 
 func Middleware(conf *Config, storages map[string]s3.Storage) *middleware {
@@ -75,11 +75,12 @@ type middleware struct {
 func (m *middleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, err := m.isReqAuthenticated(r)
-		if err != nil {
-			util.WriteError(r.Context(), w, err)
-			return
+		var ctx context.Context
+		if err == nil {
+			ctx = log.WithUser(r.Context(), user)
+		} else {
+			ctx = r.Context()
 		}
-		ctx := log.WithUser(r.Context(), user)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
