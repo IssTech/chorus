@@ -100,6 +100,8 @@ func (r *router) Route(req *http.Request) (resp *http.Response, taskList []tasks
 		s3.GetBucketLocation,
 		s3.GetBucketTagging,
 		s3.GetBucketAcl,
+		s3.GetBucketPolicy,
+		s3.GetBucketCors,
 		s3.GetBucketVersioning,
 		s3.GetObject,
 		s3.GetObjectAttributes,

@@ -38,6 +38,7 @@ func ParseReq(r *http.Request) (user string, bucket string, object string, metho
 			bucket = buParts[1]
 		} else {
 			user = ""
+			bucket = bucketUser
 		}
 	}
 
