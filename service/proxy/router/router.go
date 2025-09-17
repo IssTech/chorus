@@ -87,6 +87,10 @@ func (r *router) Route(req *http.Request) (resp *http.Response, taskList []tasks
 		if !features.Versioning(ctx) {
 			return nil, nil, "", false, fmt.Errorf("versioning api is disabled: %w", dom.ErrNotImplemented)
 		}
+	case s3.PutBucketPolicy, s3.GetBucketPolicy, s3.GetBucketPolicyStatus, s3.DeleteBucketPolicy:
+		if !features.Policy(ctx) {
+			return nil, nil, "", false, fmt.Errorf("policy api is disabled: %w", dom.ErrNotImplemented)
+		}
 	}
 
 	switch method {
@@ -101,6 +105,7 @@ func (r *router) Route(req *http.Request) (resp *http.Response, taskList []tasks
 		s3.GetBucketTagging,
 		s3.GetBucketAcl,
 		s3.GetBucketPolicy,
+		s3.GetBucketPolicyStatus,
 		s3.GetBucketCors,
 		s3.GetBucketVersioning,
 		s3.GetObject,
